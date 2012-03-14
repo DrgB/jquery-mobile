@@ -22,12 +22,16 @@ function outInTransitionHandler( name, reverse, $to, $from ) {
 		viewportClass = "ui-mobile-viewport-transitioning viewport-" + name,
 		maxTransitionOverride = $.mobile.maxTransitionWidth !== false && $( window ).width() > $.mobile.maxTransitionWidth,
 		none = !$.support.cssTransitions || maxTransitionOverride || !name || name === "none",
+		sequential = $.mobile.transitionSequentially,
+		cleanFrom = function(){
+			$from
+				.removeClass( $.mobile.activePageClass + " out in reverse " + name )
+				.height( "" );
+		},
 		doneOut = function() {
 
-			if ( $from ) {
-				$from
-					.removeClass( $.mobile.activePageClass + " out in reverse " + name )
-					.height( "" );
+			if ( $from && sequential ) {
+				cleanFrom();
 			}
 			
 			$to.addClass( $.mobile.activePageClass );
@@ -41,7 +45,7 @@ function outInTransitionHandler( name, reverse, $to, $from ) {
 
 			// Jump to top or prev scroll, sometimes on iOS the page has not rendered yet.
 			$to.height( screenHeight + toScroll );
-				
+			
 			$.mobile.silentScroll( toScroll );
 			
 			$to.addClass( name + " in" + reverseClass );
@@ -53,6 +57,11 @@ function outInTransitionHandler( name, reverse, $to, $from ) {
 		},
 		
 		doneIn = function() {
+			
+			if ( $from && sequential === false ) {
+				cleanFrom();
+			}
+			
 			$to
 				.removeClass( "out in reverse " + name )
 				.height( "" )
@@ -65,8 +74,16 @@ function outInTransitionHandler( name, reverse, $to, $from ) {
 		.parent().addClass( viewportClass );
 	
 	if ( $from && !none ) {
+		
+		// if it's not sequential, call the doneOut transition to start the TO page animating in simultaneously
+		if( sequential === false ){
+			doneOut();
+		}
+		else {
+			$from.animationComplete( doneOut );	
+		}
+		
 		$from
-			.animationComplete( doneOut )
 			.height( screenHeight + $(window ).scrollTop() )
 			.addClass( name + " out" + reverseClass );
 	}
@@ -79,6 +96,9 @@ function outInTransitionHandler( name, reverse, $to, $from ) {
 
 // Make our transition handler the public default.
 $.mobile.defaultTransitionHandler = outInTransitionHandler;
+
+// Should the transition handler apply CSS transition classes sequentially or simultaneously?
+$.mobile.transitionSequentially = false;
 
 //transition handler dictionary for 3rd party transitions
 $.mobile.transitionHandlers = {
